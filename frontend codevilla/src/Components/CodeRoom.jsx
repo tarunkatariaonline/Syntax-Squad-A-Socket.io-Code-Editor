@@ -1,4 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { io } from 'socket.io-client';
+import { useParams,useSearchParams } from 'react-router-dom';
+import { useCallback } from 'react';
+import {  toast } from 'react-toastify';
 
 function CodeRoom() {
 
@@ -54,6 +58,59 @@ function CodeRoom() {
           roomid: 10
         }
       ])
+
+      const [searchParams, setSearchParams] = useSearchParams();
+    const username =  searchParams.get("username");
+  
+
+      const [codeText,setCodeText]= useState('')
+      const {id}  = useParams();
+
+      const handlerCodewriter = (e) => {
+        const newValue = e.target.value;
+    setCodeText(() => newValue);
+   
+    const socket = io('http://localhost:3000/');
+    socket.emit('codebase',{id,newValue})
+        
+        // setCodeText(msg);
+      };
+    
+    
+
+   
+
+      useEffect(()=>{
+
+        console.log(codeText)
+        const socket = io('http://localhost:3000/');
+        socket.emit("room-join",{username:username,roomId:id})
+        //  navigate('/code/'+roomId)
+        socket.on("joined",(msg)=>{
+          toast(msg.username +" Joined " + msg.roomId)
+        })
+        socket.emit("users-info",id);
+        socket.on("users",(roomUsers)=>{
+         console.log(roomUsers)
+        })
+
+        
+        socket.on("cods",(msg)=>{
+          console.log(msg)
+          setCodeText(msg)
+         })
+        socket.on("error", (error) => {
+          console.error("Socket error:", error);
+        });
+
+       
+
+
+         return ()=>{
+          socket.disconnect();
+         }
+
+      },[])
   return (
     <div>
         <div>
@@ -61,9 +118,11 @@ function CodeRoom() {
              return <li key={user.id} >{user.username}</li>
             })}
         </div>
-
         <div>
-            <textarea name="" id="" cols="30" rows="10"></textarea>
+          {codeText}
+        </div>
+        <div>
+            <textarea value={codeText} onChange={handlerCodewriter} name="" id="" cols="30" rows="10"></textarea>
         </div>
 
         <div>

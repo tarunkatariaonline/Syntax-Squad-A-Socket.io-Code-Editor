@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from "react-router-dom";
+import { io } from 'socket.io-client';
+import {  toast } from 'react-toastify';
 function Home() {
 
     const [username,setUsername] = useState('');
@@ -7,8 +9,21 @@ function Home() {
     const navigate = useNavigate(); 
 
 
-    const handlerSubmit =  ()=>{
-       navigate('/code/'+roomId)
+    // useEffect(()=>{
+
+    //   const socket = io('http://localhost:3000/');
+    //   socket.emit("msg","I am connected")
+     
+    //   return  ()=>{
+    //     socket.disconnect();
+    //   }
+    // },[])
+
+
+    const handlerRoomJoin =  ()=>{
+
+  
+      navigate('/code/'+roomId+'?username='+username)
     }
   return (
    <div>
@@ -19,7 +34,8 @@ function Home() {
     <input value={roomId} onChange={(e)=>{
       setRoomId(e.target.value)
     }} type="text" placeholder='enter your roomid' />
-    <button style={{backgroundColor:"blue",color:"white"}} onClick={handlerSubmit} >Submit</button>
+    <button style={{backgroundColor:"blue",color:"white"}} onClick={handlerRoomJoin} >Submit</button>
+
 
    </div>
   )
