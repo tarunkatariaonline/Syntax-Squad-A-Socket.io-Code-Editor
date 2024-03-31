@@ -48,7 +48,7 @@ io.on('connection', (socket) => {
  })
 
  socket.on('codebase',(msg)=>{
-  console.log(msg)
+  // console.log(msg)
 
   socket.to(msg.id).emit("cods",msg.newValue)
   
