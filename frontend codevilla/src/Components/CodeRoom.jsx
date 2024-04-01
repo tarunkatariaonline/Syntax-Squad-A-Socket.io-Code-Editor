@@ -1,6 +1,13 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState ,useRef} from 'react'
 import { io } from 'socket.io-client';
 import { useParams,useSearchParams } from 'react-router-dom';
+import AceEditor from 'react-ace';
+import 'ace-builds/src-noconflict/mode-javascript';
+import 'ace-builds/src-noconflict/theme-monokai';
+import 'ace-builds/src-noconflict/theme-github';
+import 'ace-builds/src-noconflict/theme-solarized_dark'
+// Import any additional CodeMirror modes or addons if needed
+
 
 import Avatar from 'react-avatar';
 import {  toast } from 'react-toastify';
@@ -33,6 +40,10 @@ function CodeRoom() {
     
     
 
+   
+
+     
+    
    
 
       useEffect(()=>{
@@ -76,7 +87,7 @@ function CodeRoom() {
 
         <div className='    w-72 h-full bg-gray-500/50 rounded-lg p-2 justify-center items-start'>
          
-        <div className=' '>
+        <div className=' h-[70%]' >
         <div className=' m-1  text-md text-gray-300 font-bold '>
           Connected Users :
         </div>
@@ -88,10 +99,34 @@ function CodeRoom() {
        
         </div>
         
+        <div className=' h-[30%]  w-full flex flex-col justify-center '>
+          <p className=' pl-1 mb-1 font-bold text-white'>Room Id:</p>
+          <div className=' w-full h-9 rounded-lg bg-gray-500/50 backdrop-blur-lg mb-2 flex  items-center p-2 text-ellipsis overflow-hidden'>
+          <p className=' text-gray-200 text-ellipsis overflow-hidden'>{id}</p>
+          </div>
+          <button className=' text-white mb-2 bg-gradient-to-r  from-green-300 to-green-500/80  w-full h-9 rounded-lg '>Copy Room ID</button>
+          <button className=' text-white bg-gradient-to-r from-cyan-500 to-blue-500  w-full h-9 rounded-lg'>Leave</button>
+        </div>
         </div>
 
         <div className='  ml-3 w-full h-full  rounded-lg'>
-         <textarea value={codeText} placeholder=' Code here' onChange={handlerCodewriter} className=' w-full h-full bg-gray-500/50 rounded-lg  text-white ' name="" id="" cols="30" rows="10"></textarea>
+         {/* <textarea   placeholder=' Code here'  className=' w-full h-full bg-gray-500/50 rounded-lg  text-white p-3 ' name="" id="" cols="30" rows="10"></textarea> */}
+
+         <AceEditor className=' text-white bg-gray-500/50    rounded-lg'
+      mode="javascript" // specify the language mode
+      theme="monokai" // specify the theme
+      fontSize={18}
+      onChange={newValue => console.log('change', newValue)} // handle change event
+      name="UNIQUE_ID_OF_DIV" // unique ID for the editor
+      editorProps={{ $blockScrolling: true }} 
+      // editor props
+      
+      setOptions={{ useWorker: false,  enableBasicAutocompletion: false,
+        enableLiveAutocompletion: true,
+        enableSnippets: false, }}
+       // set options
+      
+    />
         </div>
 
       </div>

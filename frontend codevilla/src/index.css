@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+.ace_active-line{
+    background-color: rgba(20, 21, 21, 0.5)!important;
+ 
+}
+
+.ace_gutter{
+    background-color: rgb(107 114 128 / 0.5)!important;
+}
+
+.ace_gutter-active-line{
+    background-color: rgba(20, 21, 21, 0.5)!important;
+}
