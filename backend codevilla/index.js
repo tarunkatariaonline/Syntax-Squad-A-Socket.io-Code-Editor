@@ -1,22 +1,77 @@
 const express = require('express');
 const { createServer } = require('http');
+var bodyParser = require('body-parser')
+var cors = require('cors')
+var vm = require('vm')
+
 
 const { Server } = require('socket.io');
 
 const app = express();
+
+app.use(bodyParser.urlencoded({ extended: false }))
+
+// parse application/json
+app.use(bodyParser.json())
+
+app.use(cors({
+  
+  origin:"*",
+  credentials:true,
+  methods:["GET","POST"]
+  
+ 
+}))
+
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "*",
     methods: ["GET", "POST"],
-    credentials: true,
+
   },
 });
 
 
 let users = [];
+
+app.post('/execute-js',async(req,res)=>{
+  console.log("Hi i am here")
+  const {code} = req.body;
+ 
+
+  try {
+    // Create a new sandbox for executing the JavaScript code
+    const timeoutMilliseconds = 5000;
+    const sandbox = { console }; // Include the console object for logging
+    vm.createContext(sandbox);
+
+    // Capture console output
+     const executionTimeout = setTimeout(() => {
+      // If execution exceeds the timeout, throw an error
+      console.log("hello error")
+    }, timeoutMilliseconds);
+    let output = '';
+    sandbox.console.log = (data) => {
+      output += data + ' ';
+    };
+
+   
+
+    // Execute the JavaScript code in the sandbox
+    vm.runInContext(code, sandbox);
+
+    res.status(200).send({ output });
+    
+  }  catch (error) {
+    console.error('Error while executing code:', error);
+    res.status(500).send(`Error: ${error.message}`);
+  }
+})
 app.get('/', (req, res) => {
- res.send("hello world")
+ res.json({
+  res:"hello world"
+ });
 });
 
 io.on('connection', (socket) => {
@@ -50,11 +105,16 @@ io.on('connection', (socket) => {
  socket.on('codebase',(msg)=>{
   // console.log(msg)
 
-  socket.to(msg.id).emit("cods",msg.newValue)
+  socket.to(msg.id).emit("code-sync",msg.newValue)
   
 
  })
 
+
+ socket.on('output-sync-req',(msg)=>{
+  console.log("Output request")
+  io.to(msg.id).emit("output-sync",msg.output)
+ })
  socket.on("disconnect", (msg) => {
   const disconnectUser = users.find((user)=>user.socketId===socket.id);
   console.log(disconnectUser?.roomId)

@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "proxy": "http://localhost:3000",
+  
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,6 +14,7 @@
   "dependencies": {
     "@codemirror/lang-css": "^6.2.1",
     "@uiw/react-codemirror": "^4.21.25",
+    "axios": "^1.6.8",
     "codemirror": "^6.0.1",
     "react": "^18.2.0",
     "react-ace": "^11.0.1",
