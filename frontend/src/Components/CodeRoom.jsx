@@ -126,7 +126,7 @@ function CodeRoom() {
 
 const myMeeting = async(element)=>{
   const appID = "your app id";
-  const serverSecret = "Your_server_secret";
+  const serverSecret = "server secret ";
   const kitToken =  ZegoUIKitPrebuilt.generateKitTokenForTest(appID, serverSecret, id, Date.now().toString(), username);
   const zp = ZegoUIKitPrebuilt.create(kitToken);
 
