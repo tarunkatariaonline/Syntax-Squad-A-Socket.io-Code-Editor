@@ -6,6 +6,9 @@ import 'ace-builds/src-noconflict/mode-javascript';
 import 'ace-builds/src-noconflict/theme-monokai';
 import 'ace-builds/src-noconflict/theme-github';
 import 'ace-builds/src-noconflict/theme-solarized_dark'
+import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
+
+
 import axios from 'axios'
 
 // Import any additional CodeMirror modes or addons if needed
@@ -13,6 +16,8 @@ import axios from 'axios'
 
 import Avatar from 'react-avatar';
 import { toast } from 'react-toastify';
+import { useNavigate } from "react-router-dom";
+import NotWorking from './NotWorking';
 
 function CodeRoom() {
 
@@ -20,6 +25,8 @@ function CodeRoom() {
 
   ])
 
+
+  const navigate = useNavigate();
   const [output,setOutput] = useState("");
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -46,15 +53,39 @@ function CodeRoom() {
 
 
 
+ const  handlerCopyRoomId = async()=>{
+  try {
+    await navigator.clipboard.writeText(id);
+  toast.success("Room ID copied !",{
+    position:"top-right",
+    theme:"dark"
+  }); // Reset copied state after 2 seconds
+  } catch (error) {
+    toast.error("Room ID not copied !",{
+      position:"top-right",
+      theme:"dark"
+    });
+  }
+  
+  
+ }
+
+
+
   const outputWithBreaks =output.split('\n').map((line, index) => (
     <div key={index}>{line}</div>
   ));
 
-
+   
+ const  handlerLeaveRoom = ()=>{
+    navigate('/')
+  }
   const handlerCodeRun = async () => {
     const socket = io('http://localhost:3000/');
 
    
+
+
   
 
     try {
@@ -63,7 +94,7 @@ function CodeRoom() {
         controller = new AbortController();
         throw new Error("time limit exceeded:infinite loop");
       }, 5000)
-      const res = await fetch('http://localhost:3000/execute-js', {
+      const res = await fetch('https://backendsyntaxsquad.vercel.app/execute-js', {
         method: "POST",
 
 
@@ -90,12 +121,23 @@ function CodeRoom() {
   
   }
 
-  const handlerCodeSync = async () => {
-
-   
-  }
+  
 
 
+const myMeeting = async(element)=>{
+  const appID = "your app id";
+  const serverSecret = "Your_server_secret";
+  const kitToken =  ZegoUIKitPrebuilt.generateKitTokenForTest(appID, serverSecret, id, Date.now().toString(), username);
+  const zp = ZegoUIKitPrebuilt.create(kitToken);
+
+  zp.joinRoom({
+    container:element,
+    scenario: {
+      mode: ZegoUIKitPrebuilt.GroupCall, // To implement 1-on-1 calls, modify the parameter here to [ZegoUIKitPrebuilt.OneONoneCall].
+    },
+    showScreenSharingButton:false
+  })
+}
 
 
 
@@ -141,7 +183,8 @@ function CodeRoom() {
 
   }, [])
   return (
-    <div className='  -z-10 w-full h-[100vh] text-slate-400 bg-slate-900  flex justify-center items-center   flex-col  p-10 '>
+    <>
+    <div className= ' max-md:hidden  max-lg:hidden -z-10 w-full h-[100vh] text-slate-400 bg-slate-900  flex justify-center items-center   flex-col  p-10 '>
       <img className=' absolute  -z-0 top-0 right-0 backdrop-blur-lg' src='https://tailwindcss.com/_next/static/media/docs-dark@30.1a9f8cbf.avif' />
 
       <div className=' w-full h-full z-30 flex'>
@@ -163,10 +206,10 @@ function CodeRoom() {
           <div className=' h-[30%]  w-full flex flex-col justify-center '>
             <p className=' pl-1 mb-1 font-bold text-white'>Room Id:</p>
             <div className=' w-full h-9 rounded-lg bg-gray-500/50 backdrop-blur-lg mb-2 flex  items-center p-2 text-ellipsis overflow-hidden'>
-              <p className=' text-gray-200 text-ellipsis overflow-hidden'>{id}</p>
+              <p className=' text-gray-200 text-ellipsis  whitespace-nowrap overflow-hidden  '>{id}</p>
             </div>
-            <button className=' text-white mb-2 bg-gradient-to-r  from-green-300 to-green-500/80  w-full h-9 rounded-lg '>Copy Room ID</button>
-            <button className=' text-white bg-gradient-to-r from-cyan-500 to-blue-500  w-full h-9 rounded-lg'>Leave</button>
+            <button onClick={handlerCopyRoomId} className=' text-white mb-2 bg-gradient-to-r  from-green-300 to-green-500/80  w-full h-9 rounded-lg '>Copy Room ID</button>
+            <button className=' text-white bg-gradient-to-r from-cyan-500 to-blue-500  w-full h-9 rounded-lg' onClick={handlerLeaveRoom}>Leave</button>
           </div>
         </div>
 
@@ -201,12 +244,14 @@ function CodeRoom() {
             <div className=' w-full   h-[44%]  bg-gray-500/40 p-3  rounded-lg'>
               <p className=' font-bold text-white '>OUTPUT</p>
               <div className='  h-[90%]  overflow-y-auto '>
-               {output}
+               {outputWithBreaks}
               </div>
             </div>
 
-            <div className=' w-full  mt-[2%]  h-[44%]  bg-gray-500/40 rounded-lg p-10'>
+            <div   className=' w-full  mt-[2%]  h-[44%]  bg-gray-500/40 rounded-lg '>
+           <div ref={myMeeting}>
 
+           </div>
 
             </div>
 
@@ -218,7 +263,15 @@ function CodeRoom() {
 
       </div>
 
+      <div className=' w-full h-10 absolute bottom-0 flex justify-center items-center'>
+   Developed By Tarun Kataria With ♥
+ </div>
+
+
+
     </div>
+  <NotWorking/>
+    </>
   )
 }
 

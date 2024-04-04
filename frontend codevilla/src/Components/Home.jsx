@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from "react-router-dom";
 import { io } from 'socket.io-client';
 import {  toast } from 'react-toastify';
+import { v4 as uuidv4 } from 'uuid';
+import NotWorking from './NotWorking';
 function Home() {
 
     const [username,setUsername] = useState('');
@@ -10,7 +12,10 @@ function Home() {
 
 
  
-
+    const handlerGenrateRoom = ()=>{
+       
+     setRoomId(uuidv4())
+    }
 
     const handlerRoomJoin =  ()=>{
 
@@ -29,7 +34,8 @@ function Home() {
       }
     }
   return (
-   <div className='  -z-10 w-full h-[100vh] text-slate-400 bg-slate-900  flex justify-center items-center   flex-col '>
+    <>
+   <div className=' max-md:hidden max-lg:hidden -z-10 w-full h-[100vh] text-slate-400 bg-slate-900  flex justify-center items-center   flex-col '>
 
  <img className=' absolute  -z-0 top-0 right-0 backdrop-blur-lg' src='https://tailwindcss.com/_next/static/media/docs-dark@30.1a9f8cbf.avif'/>
 
@@ -49,13 +55,24 @@ function Home() {
 
   <button className=' w-full bg-gradient-to-r from-cyan-500/80 to-blue-500 hover:bg-blue-600/90 backdrop-blur-lg text-white h-12 rounded-md mt-3 mb-3 p-2  font-bold' type="submit" >Join Room</button>
 
-  <div className=' w-full flex justify-end  pr-3 mt-2  text-gray-300 font-bold cursor-pointer   hover:text-blue-400'>
+  <div onClick={handlerGenrateRoom} className=' w-full flex justify-end  pr-3 mt-2  text-gray-300 font-bold cursor-pointer   hover:text-blue-400'>
    Create Room ?
   </div>
   </form>
  </div>
 
+
+
+ <div className=' w-full h-10 absolute bottom-0 flex justify-center items-center'>
+   Developed By Tarun Kataria With ♥
+ </div>
+
+
    </div>
+
+
+<NotWorking/>
+  </>
   )
 }
 
