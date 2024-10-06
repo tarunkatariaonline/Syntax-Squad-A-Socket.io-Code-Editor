@@ -105,8 +105,11 @@ io.on('connection', (socket) => {
  socket.on('codebase',(msg)=>{
   // console.log(msg)
 
-  socket.to(msg.id).emit("code-sync",msg.newValue)
-  
+  const room = msg.id;
+  const codeValue = msg.newValue;
+
+  // Broadcast the updated code to everyone in the room except the sender
+  socket.broadcast.to(room).emit('code-sync', codeValue);
 
  })
 

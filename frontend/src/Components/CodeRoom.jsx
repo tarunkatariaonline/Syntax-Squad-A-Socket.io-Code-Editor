@@ -43,7 +43,7 @@ function CodeRoom() {
     setCodeText(newValue);
    
    
-      const socket = io('http://localhost:3000/');
+      const socket = io('https://syntaxsquad-py2d.onrender.com/');
 
       socket.emit('codebase', { id, newValue })
      
@@ -86,7 +86,7 @@ function CodeRoom() {
     navigate('/')
   }
   const handlerCodeRun = async () => {
-    const socket = io('http://localhost:3000');
+    const socket = io('https://syntaxsquad-py2d.onrender.com/');
 
    
 
@@ -149,7 +149,7 @@ const myMeeting = async(element)=>{
   useEffect(() => {
 
     console.log(codeText)
-    const socket = io('http://localhost:3000');
+    const socket = io('https://syntaxsquad-py2d.onrender.com/');
     socket.emit("room-join", { username: username, roomId: id })
     //  navigate('/code/'+roomId)
     socket.on("joined", (msg) => {
