@@ -68,11 +68,11 @@ app.post('/execute-js',async(req,res)=>{
     res.status(500).send(`Error: ${error.message}`);
   }
 })
-app.get('/', (req, res) => {
- res.json({
-  res:"hello world"
- });
-});
+// app.get('/', (req, res) => {
+//  res.json({
+//   res:"hello world"
+//  });
+// });
 
 io.on('connection', (socket) => {
   socket.on("msg",(msg)=>{
@@ -113,7 +113,7 @@ io.on('connection', (socket) => {
 
  socket.on('output-sync-req',(msg)=>{
   console.log("Output request")
-  io.to(msg.id).emit("output-sync",msg.output)
+  socket.to(msg.id).emit("output-sync",msg.output)
  })
  socket.on("disconnect", (msg) => {
   const disconnectUser = users.find((user)=>user.socketId===socket.id);

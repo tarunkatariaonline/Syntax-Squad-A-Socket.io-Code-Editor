@@ -39,12 +39,17 @@ function CodeRoom() {
 
   const handlerCodewriter = (newValue) => {
     // const newValue = e.target.value;
+   
     setCodeText(newValue);
+   
+   
+      const socket = io('http://localhost:3000/');
 
-
-    const socket = io('http://localhost:3000/');
-
-    socket.emit('codebase', { id, newValue })
+      socket.emit('codebase', { id, newValue })
+     
+    
+   
+ 
 
 
 
@@ -81,7 +86,7 @@ function CodeRoom() {
     navigate('/')
   }
   const handlerCodeRun = async () => {
-    const socket = io('http://localhost:3000/');
+    const socket = io('http://localhost:3000');
 
    
 
@@ -125,8 +130,8 @@ function CodeRoom() {
 
 
 const myMeeting = async(element)=>{
-  const appID = "your app id";
-  const serverSecret = "server secret ";
+  const appID = 1842127259;
+  const serverSecret = "85f0b624542025e25978a20abdc88dc7";
   const kitToken =  ZegoUIKitPrebuilt.generateKitTokenForTest(appID, serverSecret, id, Date.now().toString(), username);
   const zp = ZegoUIKitPrebuilt.create(kitToken);
 
@@ -144,7 +149,7 @@ const myMeeting = async(element)=>{
   useEffect(() => {
 
     console.log(codeText)
-    const socket = io('http://localhost:3000/');
+    const socket = io('http://localhost:3000');
     socket.emit("room-join", { username: username, roomId: id })
     //  navigate('/code/'+roomId)
     socket.on("joined", (msg) => {
@@ -184,7 +189,7 @@ const myMeeting = async(element)=>{
   }, [])
   return (
     <>
-    <div className= ' max-md:hidden  max-lg:hidden -z-10 w-full h-[100vh] text-slate-400 bg-slate-900  flex justify-center items-center   flex-col  p-10 '>
+    <div className= ' max-md:hidden   -z-10 w-full h-[100vh] text-slate-400 bg-slate-900  flex justify-center items-center   flex-col  p-10 '>
       <img className=' absolute  -z-0 top-0 right-0 backdrop-blur-lg' src='https://tailwindcss.com/_next/static/media/docs-dark@30.1a9f8cbf.avif' />
 
       <div className=' w-full h-full z-30 flex'>
