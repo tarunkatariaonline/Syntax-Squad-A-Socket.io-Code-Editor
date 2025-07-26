@@ -8,13 +8,13 @@ import "ace-builds/src-noconflict/theme-github";
 import "ace-builds/src-noconflict/theme-solarized_dark";
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
 import { debounce } from "lodash";
-
 import Avatar from "react-avatar";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import NotWorking from "./NotWorking";
 import { BASE_URL } from "../../utils";
 import axios from "axios";
+import { languages } from "../../utils";
 
 function CodeRoom() {
   const [users, setUsers] = useState([]);
@@ -25,8 +25,8 @@ function CodeRoom() {
   const username = searchParams.get("username");
   const navigate = useNavigate();
   const socketRef = useRef(null);
-  const controllerRef = useRef(new AbortController());
   const debounceRef = useRef(null);
+  const [language, setLanguage] = useState(languages[3]);
 
   // Initialize debounce for code sync
   useEffect(() => {
@@ -164,7 +164,7 @@ function CodeRoom() {
           "Content-Type": "application/json",
         },
         data: {
-          language_id: 63,
+          language_id: language.id,
           source_code: btoa(codeText),
           stdin: "",
         },
@@ -257,25 +257,46 @@ function CodeRoom() {
           </div>
 
           {/* Main Editor Area */}
-          <div className="ml-3 w-full h-full rounded-lg flex">
-            <AceEditor
-              className="text-white bg-gray-500/50 h-96 rounded-lg"
-              mode="javascript"
-              theme="monokai"
-              fontSize={18}
-              value={codeText}
-              onChange={handlerCodewriter}
-              name="codeeditor"
-              editorProps={{ $blockScrolling: true }}
-              setOptions={{
-                enableBasicAutocompletion: true,
-                enableLiveAutocompletion: true,
-                enableSnippets: false,
-              }}
-              width="100%"
-              height="100%"
-            />
 
+          <div className="ml-3 w-full h-full rounded-lg flex">
+            <div className=" w-full h-full ">
+              <div className=" w-full flex justify-end mx-1">
+                <select
+                  className="w-[150px] mb-1 bg-gray-500/70 text-white p-1 rounded-lg"
+                  value={language.id}
+                  onChange={(e) => {
+                    const lang = languages.find(
+                      (l) => l.id === parseInt(e.target.value)
+                    );
+                    setLanguage(lang);
+                    setCodeText(lang.code);
+                  }}
+                >
+                  {languages.map((lang) => (
+                    <option key={lang.id} value={lang.id}>
+                      {lang.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <AceEditor
+                className="text-white bg-gray-500/50 h-96 rounded-lg"
+                mode="javascript"
+                theme="monokai"
+                fontSize={18}
+                value={codeText}
+                onChange={handlerCodewriter}
+                name="codeeditor"
+                editorProps={{ $blockScrolling: true }}
+                setOptions={{
+                  enableBasicAutocompletion: true,
+                  enableLiveAutocompletion: true,
+                  enableSnippets: false,
+                }}
+                width="100%"
+                height="100%"
+              />
+            </div>
             <div className="w-96 h-[99%] rounded-lg ml-5">
               <div className="w-full flex justify-end">
                 <button
