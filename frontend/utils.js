@@ -1,6 +1,6 @@
 const BASE_URL_S_IO_LIVE="https://syntaxsquad-py2d.onrender.com"
 const BASE_URL_S_IO_LOCAL="http://localhost:3000/"
-const BASE_URL=BASE_URL_S_IO_LIVE
+const BASE_URL=BASE_URL_S_IO_LOCAL
 const languages = [
   {
     "id": 50,

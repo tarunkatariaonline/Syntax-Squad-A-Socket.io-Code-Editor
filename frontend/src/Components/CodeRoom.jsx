@@ -56,8 +56,17 @@ function CodeRoom() {
     // Event handlers
     const handleJoined = (msg) => {
       toast(`${msg.username} joined ${msg.roomId}`);
+      console.log(msg);
       // Refresh users list when someone new joins
       socketRef.current.emit("users-info", id);
+    };
+    const handleSyncEverything = (msg) => {
+      console.log(msg);
+      setCodeText(msg.codeValue);
+      setLanguage(msg.language);
+      setOutput(msg.output);
+
+      // Refresh users list when someone new joins
     };
 
     const handleUsers = (roomUsers) => {
@@ -75,16 +84,26 @@ function CodeRoom() {
       setOutput(msg);
     };
 
+    const languageSync = (msg) => {
+      console.log("message language sync :");
+      console.log(msg);
+      setLanguage(msg);
+    };
+
     socketRef.current.on("joined", handleJoined);
     socketRef.current.on("users", handleUsers);
     socketRef.current.on("code-sync", handleCodeSync);
+    socketRef.current.on("language-sync", languageSync);
     socketRef.current.on("output-sync", handleOutputSync);
+    socketRef.current.on("sync-everything", handleSyncEverything);
 
     return () => {
       socketRef.current.off("joined", handleJoined);
       socketRef.current.off("users", handleUsers);
       socketRef.current.off("code-sync", handleCodeSync);
+      socketRef.current.off("language-sync", languageSync);
       socketRef.current.off("output-sync", handleOutputSync);
+      socketRef.current.off("sync-everything", handleSyncEverything);
       socketRef.current.disconnect();
     };
   }, [id, username]);
@@ -149,6 +168,7 @@ function CodeRoom() {
         id,
         output: "Executing...",
       });
+      console.log(language.id);
       const response = await axios.request({
         method: "POST",
         url: "https://judge0-ce.p.rapidapi.com/submissions",
@@ -268,8 +288,16 @@ function CodeRoom() {
                     const lang = languages.find(
                       (l) => l.id === parseInt(e.target.value)
                     );
-                    setLanguage(lang);
+
+                    const code = lang.code;
+                    debounceRef.current(code);
                     setCodeText(lang.code);
+                    socketRef.current.emit("language-sync-req", {
+                      id,
+                      language: lang,
+                    });
+                    console.log("hello world");
+                    setLanguage(lang);
                   }}
                 >
                   {languages.map((lang) => (
