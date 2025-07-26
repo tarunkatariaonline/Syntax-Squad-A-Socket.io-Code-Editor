@@ -14,6 +14,7 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import NotWorking from "./NotWorking";
 import { BASE_URL } from "../../utils";
+import axios from "axios";
 
 function CodeRoom() {
   const [users, setUsers] = useState([]);
@@ -111,43 +112,76 @@ function CodeRoom() {
     navigate("/");
   };
 
-  const handlerCodeRun = async () => {
+  async function decodeOutput(token) {
     try {
-      // Clear previous execution
-      controllerRef.current.abort();
-      controllerRef.current = new AbortController();
-      setOutput("Executing...");
-
-      const timeout = setTimeout(() => {
-        controllerRef.current.abort();
-        throw new Error("Execution timed out (5s limit)");
-      }, 5000);
-
-      const res = await fetch(
-        `https://backendsyntaxsquad.vercel.app/execute-js`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: codeText }),
-          signal: controllerRef.current.signal,
-        }
-      );
-
-      clearTimeout(timeout);
-      const data = await res.json();
+      const response = await axios.request({
+        method: "GET",
+        url: "https://judge0-ce.p.rapidapi.com/submissions/" + token,
+        params: {
+          base64_encoded: "false",
+          fields: "*",
+        },
+        headers: {
+          "x-rapidapi-key":
+            "f18cc140f3msh04604cec00b1c02p18a1f3jsnd96c25c21552",
+          "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
+        },
+      });
+      console.log(response.data.stdout);
+      setOutput(response.data.stdout);
       socketRef.current.emit("output-sync-req", {
         id,
-        output: data.output || "No output",
+        output: response.data.stdout || "No output",
       });
-      setOutput(data.output);
     } catch (error) {
       socketRef.current.emit("output-sync-req", {
         id,
         output: error.message || "Execution failed",
       });
       console.log("error while exe");
+      setOutput("Error while executing code.");
     }
-  };
+  }
+  async function submitCode() {
+    try {
+      setOutput("Executing...");
+      socketRef.current.emit("output-sync-req", {
+        id,
+        output: "Executing...",
+      });
+      const response = await axios.request({
+        method: "POST",
+        url: "https://judge0-ce.p.rapidapi.com/submissions",
+        params: {
+          base64_encoded: "true",
+          wait: "false",
+          fields: "*",
+        },
+        headers: {
+          "x-rapidapi-key":
+            "f18cc140f3msh04604cec00b1c02p18a1f3jsnd96c25c21552",
+          "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
+          "Content-Type": "application/json",
+        },
+        data: {
+          language_id: 63,
+          source_code: btoa(codeText),
+          stdin: "",
+        },
+      });
+      console.log(response.data);
+      //here we are getting token and as response.data
+      decodeOutput(response.data.token);
+    } catch (error) {
+      console.error(error);
+      socketRef.current.emit("output-sync-req", {
+        id,
+        output: error.message || "Execution failed",
+      });
+      console.log("error while exe");
+      setOutput("Error while executing code.");
+    }
+  }
 
   const myMeeting = (element) => {
     const appID = 1842127259;
@@ -245,7 +279,7 @@ function CodeRoom() {
             <div className="w-96 h-[99%] rounded-lg ml-5">
               <div className="w-full flex justify-end">
                 <button
-                  onClick={handlerCodeRun}
+                  onClick={submitCode}
                   className="w-20 text-sm h-8 mb-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center"
                 >
                   Run
