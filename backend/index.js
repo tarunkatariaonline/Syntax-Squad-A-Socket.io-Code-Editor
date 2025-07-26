@@ -35,39 +35,47 @@ const io = new Server(server, {
 
 let users = [];
 
-app.post('/execute-js',async(req,res)=>{
-  console.log("Hi i am here")
-  const {code} = req.body;
+let backendCode = "console.log(\"Hello, World!\");";
+let backendLanguage={
+    "id": 63,
+    "name": "JavaScript (Node.js 12.14.0)",
+    "code": "console.log(\"Hello, World!\");"
+  };
+let backendOutput="";  
+
+// app.post('/execute-js',async(req,res)=>{
+//   console.log("Hi i am here")
+//   const {code} = req.body;
  
 
-  try {
-    // Create a new sandbox for executing the JavaScript code
-    const timeoutMilliseconds = 5000;
-    const sandbox = { console }; // Include the console object for logging
-    vm.createContext(sandbox);
+//   try {
+//     // Create a new sandbox for executing the JavaScript code
+//     const timeoutMilliseconds = 5000;
+//     const sandbox = { console }; // Include the console object for logging
+//     vm.createContext(sandbox);
 
-    // Capture console output
-     const executionTimeout = setTimeout(() => {
-      // If execution exceeds the timeout, throw an error
-      console.log("hello error")
-    }, timeoutMilliseconds);
-    let output = '';
-    sandbox.console.log = (data) => {
-      output += data + ' ';
-    };
+//     // Capture console output
+//      const executionTimeout = setTimeout(() => {
+//       // If execution exceeds the timeout, throw an error
+//       console.log("hello error")
+//     }, timeoutMilliseconds);
+//     let output = '';
+//     sandbox.console.log = (data) => {
+//       output += data + ' ';
+//     };
 
    
 
-    // Execute the JavaScript code in the sandbox
-    vm.runInContext(code, sandbox);
+//     // Execute the JavaScript code in the sandbox
+//     vm.runInContext(code, sandbox);
 
-    res.status(200).send({ output });
+//     res.status(200).send({ output });
     
-  }  catch (error) {
-    console.error('Error while executing code:', error);
-    res.status(500).send(`Error: ${error.message}`);
-  }
-})
+//   }  catch (error) {
+//     console.error('Error while executing code:', error);
+//     res.status(500).send(`Error: ${error.message}`);
+//   }
+// })
 // app.get('/', (req, res) => {
 //  res.json({
 //   res:"hello world"
@@ -83,9 +91,14 @@ io.on('connection', (socket) => {
   socket.on("room-join",(msg)=>{
     socket.join(msg.roomId);
     msg.socketId = socket.id
+    msg.language =backendLanguage
+    msg.codeValue = backendCode;
+    msg.output = backendOutput
+
     users.push(msg);
     console.log("room joined successfully")
     socket.to(msg.roomId).emit('joined', msg);
+    socket.emit('sync-everything', msg);
 
     
   })
@@ -107,15 +120,29 @@ io.on('connection', (socket) => {
 
   const room = msg.id;
   const codeValue = msg.newValue;
+  backendCode = msg.newValue
 
   // Broadcast the updated code to everyone in the room except the sender
   socket.broadcast.to(room).emit('code-sync', codeValue);
 
  })
 
+  socket.on('language-sync-req',(msg)=>{
+  // console.log(msg)
+  const room = msg.id;
+  const language =  msg.language;
+  backendLanguage = msg.language
+ 
+
+  // Broadcast the updated code to everyone in the room except the sender
+  socket.broadcast.to(room).emit('language-sync',language);
+
+ })
+
 
  socket.on('output-sync-req',(msg)=>{
   console.log("Output request")
+  backendOutput = msg.output
   socket.to(msg.id).emit("output-sync",msg.output)
  })
  socket.on("disconnect", (msg) => {
