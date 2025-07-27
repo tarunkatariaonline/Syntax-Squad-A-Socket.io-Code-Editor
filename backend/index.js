@@ -113,6 +113,7 @@ io.on('connection', (socket) => {
 
  socket.on('output-sync-req',(msg)=>{
   console.log("Output request")
+   const room = msg.id;
    if (roomData[room]) {
       roomData[room].output = output;
     }
