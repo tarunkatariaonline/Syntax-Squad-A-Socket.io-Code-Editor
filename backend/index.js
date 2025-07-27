@@ -34,7 +34,7 @@ const io = new Server(server, {
 
 
 let users = [];
-
+let roomData = {}; 
 let backendCode = "console.log(\"Hello, World!\");";
 let backendLanguage={
     "id": 63,
@@ -43,44 +43,6 @@ let backendLanguage={
   };
 let backendOutput="";  
 
-// app.post('/execute-js',async(req,res)=>{
-//   console.log("Hi i am here")
-//   const {code} = req.body;
- 
-
-//   try {
-//     // Create a new sandbox for executing the JavaScript code
-//     const timeoutMilliseconds = 5000;
-//     const sandbox = { console }; // Include the console object for logging
-//     vm.createContext(sandbox);
-
-//     // Capture console output
-//      const executionTimeout = setTimeout(() => {
-//       // If execution exceeds the timeout, throw an error
-//       console.log("hello error")
-//     }, timeoutMilliseconds);
-//     let output = '';
-//     sandbox.console.log = (data) => {
-//       output += data + ' ';
-//     };
-
-   
-
-//     // Execute the JavaScript code in the sandbox
-//     vm.runInContext(code, sandbox);
-
-//     res.status(200).send({ output });
-    
-//   }  catch (error) {
-//     console.error('Error while executing code:', error);
-//     res.status(500).send(`Error: ${error.message}`);
-//   }
-// })
-// app.get('/', (req, res) => {
-//  res.json({
-//   res:"hello world"
-//  });
-// });
 
 io.on('connection', (socket) => {
   socket.on("msg",(msg)=>{
@@ -91,10 +53,21 @@ io.on('connection', (socket) => {
   socket.on("room-join",(msg)=>{
     socket.join(msg.roomId);
     msg.socketId = socket.id
-    msg.language =backendLanguage
-    msg.codeValue = backendCode;
-    msg.output = backendOutput
+    if (!roomData[msg.roomId]) {
+      roomData[msg.roomId] = {
+        code: 'console.log("Hello, World!");',
+        language: {
+          id: 63,
+          name: "JavaScript (Node.js 12.14.0)",
+          code: 'console.log("Hello, World!");'
+        },
+        output: ''
+      };
+    }
 
+    msg.language = roomData[msg.roomId].language;
+    msg.codeValue = roomData[msg.roomId].code;
+    msg.output = roomData[msg.roomId].output;
     users.push(msg);
     console.log("room joined successfully")
     socket.to(msg.roomId).emit('joined', msg);
@@ -120,7 +93,10 @@ io.on('connection', (socket) => {
 
   const room = msg.id;
   const codeValue = msg.newValue;
-  backendCode = msg.newValue
+  
+    if (roomData[room]) {
+      roomData[room].code = codeValue;
+    }
 
   // Broadcast the updated code to everyone in the room except the sender
   socket.broadcast.to(room).emit('code-sync', codeValue);
@@ -131,8 +107,9 @@ io.on('connection', (socket) => {
   // console.log(msg)
   const room = msg.id;
   const language =  msg.language;
-  backendLanguage = msg.language
- 
+   if (roomData[room]) {
+      roomData[room].language = language;
+    }
 
   // Broadcast the updated code to everyone in the room except the sender
   socket.broadcast.to(room).emit('language-sync',language);
@@ -142,7 +119,9 @@ io.on('connection', (socket) => {
 
  socket.on('output-sync-req',(msg)=>{
   console.log("Output request")
-  backendOutput = msg.output
+   if (roomData[room]) {
+      roomData[room].output = output;
+    }
   socket.to(msg.id).emit("output-sync",msg.output)
  })
  socket.on("disconnect", (msg) => {
