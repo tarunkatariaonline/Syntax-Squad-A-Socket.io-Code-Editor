@@ -3,6 +3,9 @@ import { io } from "socket.io-client";
 import { useParams, useSearchParams } from "react-router-dom";
 import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-javascript";
+import "ace-builds/src-noconflict/mode-c_cpp";
+import "ace-builds/src-noconflict/mode-typescript";
+import "ace-builds/src-noconflict/mode-java";
 import "ace-builds/src-noconflict/theme-monokai";
 import "ace-builds/src-noconflict/theme-github";
 import "ace-builds/src-noconflict/theme-solarized_dark";
@@ -309,7 +312,7 @@ function CodeRoom() {
               </div>
               <AceEditor
                 className="text-white bg-gray-500/50 h-96 rounded-lg"
-                mode="javascript"
+                mode={language.mode}
                 theme="monokai"
                 fontSize={18}
                 value={codeText}
