@@ -136,34 +136,55 @@ function CodeRoom() {
 
   async function decodeOutput(token) {
     try {
-      const response = await axios.request({
-        method: "GET",
-        url: "https://judge0-ce.p.rapidapi.com/submissions/" + token,
-        params: {
-          base64_encoded: "false",
-          fields: "*",
-        },
-        headers: {
-          "x-rapidapi-key":
-            "f18cc140f3msh04604cec00b1c02p18a1f3jsnd96c25c21552",
-          "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-        },
-      });
-      console.log(response.data.stdout);
-      setOutput(response.data.stdout);
+      let status = null;
+      let response = null;
+
+      // Poll until output is ready
+      do {
+        response = await axios.request({
+          method: "GET",
+          url: "https://judge0-ce.p.rapidapi.com/submissions/" + token,
+          params: {
+            base64_encoded: "false",
+            fields: "*",
+          },
+          headers: {
+            "x-rapidapi-key":
+              "f18cc140f3msh04604cec00b1c02p18a1f3jsnd96c25c21552",
+            "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
+          },
+        });
+
+        status = response.data.status?.id;
+
+        // Wait for a bit before polling again
+        if (status === 1 || status === 2) {
+          await new Promise((res) => setTimeout(res, 1000));
+        }
+      } while (status === 1 || status === 2); // 1: In Queue, 2: Processing
+
+      const output =
+        response.data.stdout ||
+        response.data.compile_output ||
+        response.data.stderr ||
+        "No output";
+
+      console.log(output);
+      setOutput(output);
       socketRef.current.emit("output-sync-req", {
         id,
-        output: response.data.stdout || "No output",
+        output,
       });
     } catch (error) {
+      console.log("Error while executing code:", error.message);
+      setOutput("Error while executing code.");
       socketRef.current.emit("output-sync-req", {
         id,
         output: error.message || "Execution failed",
       });
-      console.log("error while exe");
-      setOutput("Error while executing code.");
     }
   }
+
   async function submitCode() {
     try {
       setOutput("Executing...");
