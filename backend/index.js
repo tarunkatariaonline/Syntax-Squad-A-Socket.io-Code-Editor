@@ -35,13 +35,7 @@ const io = new Server(server, {
 
 let users = [];
 let roomData = {}; 
-let backendCode = "console.log(\"Hello, World!\");";
-let backendLanguage={
-    "id": 63,
-    "name": "JavaScript (Node.js 12.14.0)",
-    "code": "console.log(\"Hello, World!\");"
-  };
-let backendOutput="";  
+
 
 
 io.on('connection', (socket) => {
