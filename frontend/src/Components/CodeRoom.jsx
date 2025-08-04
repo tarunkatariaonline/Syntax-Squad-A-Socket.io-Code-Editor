@@ -1,391 +1,360 @@
-import React, { useEffect, useState, useRef } from "react";
-import { io } from "socket.io-client";
-import { useParams, useSearchParams } from "react-router-dom";
-import AceEditor from "react-ace";
-import "ace-builds/src-noconflict/mode-javascript";
-import "ace-builds/src-noconflict/mode-c_cpp";
-import "ace-builds/src-noconflict/mode-typescript";
-import "ace-builds/src-noconflict/mode-java";
-import "ace-builds/src-noconflict/theme-monokai";
-import "ace-builds/src-noconflict/theme-github";
-import "ace-builds/src-noconflict/theme-solarized_dark";
-import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
-import { debounce } from "lodash";
-import Avatar from "react-avatar";
-import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
-import NotWorking from "./NotWorking";
-import { BASE_URL } from "../../utils";
-import axios from "axios";
-import { languages } from "../../utils";
+import React, { useEffect, useState, useRef } from 'react';
+import { throttle } from 'lodash';
+import { io } from 'socket.io-client';
+import { useParams, useSearchParams } from 'react-router-dom';
+import AceEditor from 'react-ace';
+import 'ace-builds/src-noconflict/mode-javascript';
+import 'ace-builds/src-noconflict/theme-monokai';
+import 'ace-builds/src-noconflict/theme-github';
+import 'ace-builds/src-noconflict/theme-solarized_dark';
+import 'ace-builds/src-noconflict/mode-javascript';
+import 'ace-builds/src-noconflict/mode-java';
+import 'ace-builds/src-noconflict/mode-python';
+import 'ace-builds/src-noconflict/mode-c_cpp';
+
+import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
+
+import axios from 'axios';
+
+import openai from 'openai';
+
+// Import any additional CodeMirror modes or addons if needed
+
+import Avatar from 'react-avatar';
+import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
+import NotWorking from './NotWorking';
+
+const APIkey = process.env.REACT_APP_OPENAI_API_KEY;
+const client = new openai({
+    apiKey: APIkey,
+    dangerouslyAllowBrowser: true,
+});
 
 function CodeRoom() {
-  const [users, setUsers] = useState([]);
-  const [output, setOutput] = useState("");
-  const [codeText, setCodeText] = useState('console.log("hello world")');
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const username = searchParams.get("username");
-  const navigate = useNavigate();
-  const socketRef = useRef(null);
-  const debounceRef = useRef(null);
-  const [language, setLanguage] = useState(languages[3]);
+    // const URL = 'https://syntaxsquad-py2d.onrender.com/';
+    const URL = 'http://localhost:3000/';
 
-  // Initialize debounce for code sync
-  useEffect(() => {
-    debounceRef.current = debounce((newValue) => {
-      if (socketRef.current?.connected) {
-        socketRef.current.emit("codebase", { id, newValue });
-      }
-    }, 300);
+    const [users, setUsers] = useState([]);
+    const emitTimeoutRef = useRef(null);
 
-    return () => debounceRef.current?.cancel();
-  }, [id]);
+    const navigate = useNavigate();
+    const [output, setOutput] = useState('');
 
-  // Socket.io connection and event handlers
-  useEffect(() => {
-    socketRef.current = io(BASE_URL);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const username = searchParams.get('username');
 
-    // Join room with user info
-    socketRef.current.emit("room-join", {
-      username,
-      roomId: id,
-      socketId: socketRef.current.id,
-    });
+    const [chatMessages, setChatMessages] = useState([]);
+    const [isChatbotOpen, setIsChatbotOpen] = useState(false);
 
-    // Request users info after joining
-    socketRef.current.emit("users-info", id);
+    let controller = new AbortController();
 
-    // Event handlers
-    const handleJoined = (msg) => {
-      toast(`${msg.username} joined ${msg.roomId}`);
-      console.log(msg);
-      // Refresh users list when someone new joins
-      socketRef.current.emit("users-info", id);
+    const [codeText, setCodeText] = useState();
+    const { id } = useParams();
+
+    // chatbot
+    const handleChatSubmit = async (message) => {
+        const userMessage = { sender: 'user', text: message };
+        setChatMessages((prev) => [...prev, userMessage]);
+
+        try {
+            const response = await axios.post(
+                'https://api.openai.com/v1/completions',
+                {
+                    model: 'gpt-3.5-turbo', // Change this if you use a different model
+                    messages: [message, { role: 'system', content: 'You are a helpful assistant.' }],
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${APIkey}`,
+                    },
+                },
+            );
+
+            // const response = await axios.post(
+            //     // 'https://api.openai.com/v1/engines/davinci-codex/completions',
+            //     'https://api.chatanywhere.tech',
+            //     {
+            //         prompt: message,
+            //         max_tokens: 150,
+            //         n: 1,
+            //         stop: null,
+            //         temperature: 0.5,
+            //     },
+            //     {
+            //         headers: {
+            //             Authorization: `Bearer ${APIkey}`,
+            //             'Content-Type': 'application/json',
+            //         },
+            //     },
+            // );
+            console.log(response);
+
+            const botMessage = { sender: 'bot', text: response.data.choices[0].text.trim() };
+            setChatMessages((prev) => [...prev, botMessage]);
+        } catch (error) {
+            console.error('Error fetching AI response:', error);
+        }
     };
-    const handleSyncEverything = (msg) => {
-      console.log(msg);
-      setCodeText(msg.codeValue);
-      setLanguage(msg.language);
-      setOutput(msg.output);
-
-      // Refresh users list when someone new joins
+    const handleSendMessage = (e) => {
+        e.preventDefault();
+        const input = e.target.elements.message;
+        const message = input.value;
+        if (message) {
+            handleChatSubmit(message);
+            input.value = '';
+        }
     };
 
-    const handleUsers = (roomUsers) => {
-      console.log("Received users:", roomUsers);
-      setUsers(roomUsers);
+    const handlerCodewriter = throttle((newValue) => {
+        setCodeText(newValue);
+
+        const socket = io(URL);
+        socket.emit('codebase', { id, newValue });
+    }, 300); // Throttle the emit every 300ms
+
+    const handlerCopyRoomId = async () => {
+        try {
+            await navigator.clipboard.writeText(id);
+            toast.success('Room ID copied !', {
+                position: 'top-right',
+                theme: 'dark',
+            }); // Reset copied state after 2 seconds
+        } catch (error) {
+            toast.error('Room ID not copied !', {
+                position: 'top-right',
+                theme: 'dark',
+            });
+        }
     };
 
-    const handleCodeSync = (msg) => {
-      if (msg !== codeText) {
-        setCodeText(msg);
-      }
+    const [language, setLanguage] = useState('javascript');
+
+    const handleLanguageChange = (e) => {
+        setLanguage(e.target.value);
     };
 
-    const handleOutputSync = (msg) => {
-      setOutput(msg);
+    const outputWithBreaks = output.split('\n').map((line, index) => <div key={index}>{line}</div>);
+
+    const handlerLeaveRoom = () => {
+        navigate('/');
+    };
+    const handlerCodeRun = async () => {
+        const socket = io(URL);
+
+        try {
+            const timer = setTimeout(() => {
+                controller.abort();
+                controller = new AbortController();
+                throw new Error('time limit exceeded: infinite loop');
+            }, 5000);
+
+            const res = await fetch(URL + 'execute-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: codeText,
+                    language: language, // Pass the selected language
+                }),
+            });
+
+            const json = await res.json();
+            clearTimeout(timer);
+            console.log(json);
+            socket.emit('output-sync-req', { id, output: json.output });
+        } catch (error) {
+            socket.emit('output-sync-req', { id, output: error.message });
+            console.log(error.message);
+        }
     };
 
-    const languageSync = (msg) => {
-      console.log("message language sync :");
-      console.log(msg);
-      setLanguage(msg);
+    const myMeeting = async (element) => {
+        const appID = 1842127259;
+        const serverSecret = '85f0b624542025e25978a20abdc88dc7';
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(appID, serverSecret, id, Date.now().toString(), username);
+        const zp = ZegoUIKitPrebuilt.create(kitToken);
+
+        zp.joinRoom({
+            container: element,
+            scenario: {
+                mode: ZegoUIKitPrebuilt.GroupCall, // To implement 1-on-1 calls, modify the parameter here to [ZegoUIKitPrebuilt.OneONoneCall].
+            },
+            showScreenSharingButton: false,
+        });
     };
 
-    socketRef.current.on("joined", handleJoined);
-    socketRef.current.on("users", handleUsers);
-    socketRef.current.on("code-sync", handleCodeSync);
-    socketRef.current.on("language-sync", languageSync);
-    socketRef.current.on("output-sync", handleOutputSync);
-    socketRef.current.on("sync-everything", handleSyncEverything);
+    useEffect(() => {
+        if (language === 'javascript') {
+            setCodeText(`console.log('Hello, World!');`);
+        } else if (language === 'java') {
+            setCodeText(`public class Main \n { public static void main(String[] args) \n {\n System.out.println("Hello, World!"); \n} \n}`);
+        } else if (language === 'python') {
+            setCodeText(`print('Hello, World!')`);
+        } else if (language === 'c_cpp') {
+            setCodeText(`#include <iostream>\nint main() { \nstd::cout << "Hello, World!" << std::endl; \nreturn 0; \n}`);
+        }
+    }, [language]);
 
-    return () => {
-      socketRef.current.off("joined", handleJoined);
-      socketRef.current.off("users", handleUsers);
-      socketRef.current.off("code-sync", handleCodeSync);
-      socketRef.current.off("language-sync", languageSync);
-      socketRef.current.off("output-sync", handleOutputSync);
-      socketRef.current.off("sync-everything", handleSyncEverything);
-      socketRef.current.disconnect();
-    };
-  }, [id, username]);
-  const handlerCodewriter = (newValue) => {
-    setCodeText(newValue);
-    debounceRef.current(newValue);
-  };
-
-  const handlerCopyRoomId = async () => {
-    try {
-      await navigator.clipboard.writeText(id);
-      toast.success("Room ID copied!", {
-        position: "top-right",
-        theme: "dark",
-      });
-    } catch (error) {
-      toast.error("Failed to copy Room ID", {
-        position: "top-right",
-        theme: "dark",
-      });
-    }
-  };
-
-  const handlerLeaveRoom = () => {
-    navigate("/");
-  };
-
-  async function decodeOutput(token) {
-    try {
-      let status = null;
-      let response = null;
-
-      // Poll until output is ready
-      do {
-        response = await axios.request({
-          method: "GET",
-          url: "https://judge0-ce.p.rapidapi.com/submissions/" + token,
-          params: {
-            base64_encoded: "false",
-            fields: "*",
-          },
-          headers: {
-            "x-rapidapi-key":
-              "f18cc140f3msh04604cec00b1c02p18a1f3jsnd96c25c21552",
-            "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-          },
+    useEffect(() => {
+        console.log(codeText);
+        const socket = io(URL);
+        socket.emit('room-join', { username: username, roomId: id });
+        //  navigate('/code/'+roomId)
+        socket.on('joined', (msg) => {
+            toast(msg.username + ' Joined ' + msg.roomId);
+        });
+        socket.emit('users-info', id);
+        socket.on('users', (roomUsers) => {
+            console.log(roomUsers);
+            setUsers(roomUsers);
+        });
+        socket.on('code-sync', (msg) => {
+            // console.log(msg)
+            setCodeText(msg);
         });
 
-        status = response.data.status?.id;
+        socket.on('output-sync', (msg) => {
+            setOutput(msg);
 
-        // Wait for a bit before polling again
-        if (status === 1 || status === 2) {
-          await new Promise((res) => setTimeout(res, 1000));
-        }
-      } while (status === 1 || status === 2); // 1: In Queue, 2: Processing
+            console.log(msg);
+        });
+        socket.on('error', (error) => {
+            console.error('Socket error:', error);
+        });
 
-      const output =
-        response.data.stdout ||
-        response.data.compile_output ||
-        response.data.stderr ||
-        "No output";
+        return () => {
+            socket.disconnect();
+            if (emitTimeoutRef.current) {
+                clearTimeout(emitTimeoutRef.current);
+            }
+        };
+    }, []);
+    return (
+        <>
+            <div className="max-md:hidden  -z-10 w-full h-[100vh] text-slate-400 bg-slate-900  flex justify-center items-center flex-col  p-10 ">
+                <img className=" absolute  -z-0 top-0 right-0 backdrop-blur-lg" src="https://tailwindcss.com/_next/static/media/docs-dark@30.1a9f8cbf.avif" />
 
-      console.log(output);
-      setOutput(output);
-      socketRef.current.emit("output-sync-req", {
-        id,
-        output,
-      });
-    } catch (error) {
-      console.log("Error while executing code:", error.message);
-      setOutput("Error while executing code.");
-      socketRef.current.emit("output-sync-req", {
-        id,
-        output: error.message || "Execution failed",
-      });
-    }
-  }
+                <div className="w-full h-full z-30 flex">
+                    <div className="min-w-72 h-[100%] bg-gray-500/50 rounded-lg p-2 justify-center items-start">
+                        <div className=" h-[70%]">
+                            <div className=" m-1  text-md text-gray-300 font-bold ">Connected Users :</div>
 
-  async function submitCode() {
-    try {
-      setOutput("Executing...");
-      socketRef.current.emit("output-sync-req", {
-        id,
-        output: "Executing...",
-      });
-      console.log(language.id);
-      const response = await axios.request({
-        method: "POST",
-        url: "https://judge0-ce.p.rapidapi.com/submissions",
-        params: {
-          base64_encoded: "true",
-          wait: "false",
-          fields: "*",
-        },
-        headers: {
-          "x-rapidapi-key":
-            "f18cc140f3msh04604cec00b1c02p18a1f3jsnd96c25c21552",
-          "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-          "Content-Type": "application/json",
-        },
-        data: {
-          language_id: language.id,
-          source_code: btoa(codeText),
-          stdin: "",
-        },
-      });
-      console.log(response.data);
-      //here we are getting token and as response.data
-      decodeOutput(response.data.token);
-    } catch (error) {
-      console.error(error);
-      socketRef.current.emit("output-sync-req", {
-        id,
-        output: error.message || "Execution failed",
-      });
-      console.log("error while exe");
-      setOutput("Error while executing code.");
-    }
-  }
+                            {users.map((user, index) => {
+                                return <Avatar key={index} name={user.username} size="45" className="  rounded-lg  m-1 " textSizeRatio={2.5} />;
+                            })}
+                        </div>
 
-  const myMeeting = (element) => {
-    const appID = 1842127259;
-    const serverSecret = "85f0b624542025e25978a20abdc88dc7";
-    const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-      appID,
-      serverSecret,
-      id,
-      Date.now().toString(),
-      username
-    );
-    const zp = ZegoUIKitPrebuilt.create(kitToken);
-    zp.joinRoom({
-      container: element,
-      scenario: { mode: ZegoUIKitPrebuilt.GroupCall },
-      showScreenSharingButton: false,
-    });
-  };
-
-  const outputWithBreaks = output.split("\n").map((line, index) => (
-    <div key={index} className="font-mono text-sm">
-      {line}
-    </div>
-  ));
-
-  return (
-    <>
-      <div className="max-md:hidden -z-10 w-full h-[100vh] text-slate-400 bg-slate-900 flex justify-center items-center flex-col p-10">
-        <div className="w-full h-full z-30 flex">
-          {/* Left Sidebar */}
-          <div className="w-72 h-[98%] bg-gray-500/50 rounded-lg p-2 justify-center items-start">
-            <div className="h-[70%] overflow-y-auto">
-              <div className="m-1 text-md text-gray-300 font-bold">
-                Connected Users ({users.length})
-              </div>
-              <div className="flex flex-wrap">
-                {users.map((user, index) => (
-                  <div key={index} className="m-1 flex flex-col items-center">
-                    <Avatar
-                      name={user.username}
-                      size="45"
-                      className="rounded-lg"
-                      textSizeRatio={2.5}
-                    />
-                    <span className="text-xs text-gray-300 mt-1">
-                      {user.username}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="h-[30%] w-full flex flex-col justify-center">
-              <p className="pl-1 mb-1 font-bold text-white">Room Id:</p>
-              <div className="w-full h-9 rounded-lg bg-gray-500/50 backdrop-blur-lg mb-2 flex items-center p-2 text-ellipsis overflow-hidden">
-                <p className="text-gray-200 text-ellipsis whitespace-nowrap overflow-hidden">
-                  {id}
-                </p>
-              </div>
-              <button
-                onClick={handlerCopyRoomId}
-                className="text-white mb-2 bg-gradient-to-r from-green-300 to-green-500/80 w-full h-9 rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Copy Room ID
-              </button>
-              <button
-                className="text-white bg-gradient-to-r from-cyan-500 to-blue-500 w-full h-9 rounded-lg hover:opacity-90 transition-opacity"
-                onClick={handlerLeaveRoom}
-              >
-                Leave Room
-              </button>
-            </div>
-          </div>
-
-          {/* Main Editor Area */}
-
-          <div className="ml-3 w-full h-full rounded-lg flex">
-            <div className=" w-full h-full ">
-              <div className=" w-full flex justify-end mx-1">
-                <select
-                  className="w-[150px] mb-1 bg-gray-500/70 text-white p-1 rounded-lg"
-                  value={language.id}
-                  onChange={(e) => {
-                    const lang = languages.find(
-                      (l) => l.id === parseInt(e.target.value)
-                    );
-
-                    const code = lang.code;
-                    debounceRef.current(code);
-                    setCodeText(lang.code);
-                    socketRef.current.emit("language-sync-req", {
-                      id,
-                      language: lang,
-                    });
-                    console.log("hello world");
-                    setLanguage(lang);
-                  }}
-                >
-                  {languages.map((lang) => (
-                    <option key={lang.id} value={lang.id}>
-                      {lang.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <AceEditor
-                className="text-white bg-gray-500/50 h-96 rounded-lg"
-                mode={language.mode}
-                theme="monokai"
-                fontSize={18}
-                value={codeText}
-                onChange={handlerCodewriter}
-                name="codeeditor"
-                editorProps={{ $blockScrolling: true }}
-                setOptions={{
-                  enableBasicAutocompletion: true,
-                  enableLiveAutocompletion: true,
-                  enableSnippets: false,
-                }}
-                width="100%"
-                height="100%"
-              />
-            </div>
-            <div className="w-96 h-[99%] rounded-lg ml-5">
-              <div className="w-full flex justify-end">
-                <button
-                  onClick={submitCode}
-                  className="w-20 text-sm h-8 mb-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center"
-                >
-                  Run
-                </button>
-              </div>
-
-              <div className="w-full h-[44%] bg-gray-500/40 p-3 rounded-lg">
-                <p className="font-bold text-white mb-2">OUTPUT</p>
-                <div className="h-[90%] overflow-y-auto  p-2 rounded">
-                  {output ? (
-                    outputWithBreaks
-                  ) : (
-                    <div className="text-gray-500 italic">
-                      Output will appear here...
+                        <div className=" h-[30%]  w-full flex flex-col justify-center ">
+                            <p className=" pl-1 mb-1 font-bold text-white">Room Id:</p>
+                            <div className=" w-full h-9 rounded-lg bg-gray-500/50 backdrop-blur-lg mb-2 flex  items-center p-2 text-ellipsis overflow-hidden">
+                                <p className=" text-gray-200 text-ellipsis  whitespace-nowrap overflow-hidden  ">{id}</p>
+                            </div>
+                            <button onClick={handlerCopyRoomId} className=" text-white mb-2 bg-gradient-to-r  from-green-300 to-green-500/80  w-full h-9 rounded-lg ">
+                                Copy Room ID
+                            </button>
+                            <button className=" text-white bg-gradient-to-r from-cyan-500 to-blue-500  w-full h-9 rounded-lg" onClick={handlerLeaveRoom}>
+                                Leave
+                            </button>
+                        </div>
                     </div>
-                  )}
+
+                    <div className=" ml-3 h-full">
+                        <div className=" w-full flex items-center justify-between pb-1 h-[6%]">
+                            <select onChange={handleLanguageChange} value={language} className="rounded-lg p-1 text-sm bg-gray-500/50 text-white">
+                                <option value="javascript">JavaScript</option>
+                                <option value="java">Java</option>
+                                <option value="python">Python</option>
+                                <option value="c_cpp">C/C++</option>
+                            </select>
+                            <button className=" w-20 text-sm h-7 bg-blue-500 text-white rounded-md" onClick={handlerCodeRun}>
+                                Run Code{' '}
+                            </button>
+                        </div>
+
+                        <div className="max-h-[90%]">
+                            <AceEditor
+                                className="text-white bg-gray-500/50 rounded-lg "
+                                mode={language} // Dynamically set the language mode
+                                theme="monokai"
+                                fontSize={18}
+                                value={codeText}
+                                onChange={handlerCodewriter}
+                                name="codeeditor"
+                                editorProps={{ $blockScrolling: true }}
+                                setOptions={{
+                                    enableBasicAutocompletion: true,
+                                    enableLiveAutocompletion: true,
+                                    enableSnippets: false,
+                                }}
+                            />
+                            {/* <textarea   placeholder=' Code here'  className=' w-full h-full bg-gray-500/50 rounded-lg  text-white p-3 ' name="" id="" cols="30" rows="10"></textarea> */}
+
+                            {/* <AceEditor
+                            className=" text-white bg-gray-500/50   h-96  rounded-lg"
+                            mode="javascript" // specify the language mode
+                            theme="monokai" // specify the theme
+                            fontSize={18}
+                            value={codeText}
+                            // onChange={newValue => console.log('change', newValue)} // handle change event
+                            onChange={handlerCodewriter}
+                            name="codeeditor" // unique ID for the editor
+                            editorProps={{ $blockScrolling: true }}
+                            // editor props
+                            
+                            setOptions={{
+                                enableBasicAutocompletion: true,
+                                enableLiveAutocompletion: true,
+                                enableSnippets: false,
+                            }}
+                            // set options
+                        /> */}
+                        </div>
+                    </div>
+                    <div className=" h-[99%] w-full rounded-lg ml-5">
+                        <div className=" w-full   h-[44%]  bg-gray-500/40 p-3  rounded-lg">
+                            <p className=" font-bold text-white ">OUTPUT</p>
+                            <div className="  h-[90%]  overflow-y-auto ">{outputWithBreaks}</div>
+                        </div>
+
+                        <div className=" w-full  mt-[2%]  h-[44%]  bg-gray-500/40 rounded-lg ">
+                            <div ref={myMeeting}></div>
+                        </div>
+                    </div>
+                    {/* Chat Interface */}
+                    {isChatbotOpen && (
+                        <div className="chat-container absolute right-20 bottom-14 w-[30%] h-80 bg-gray-500 z-50 rounded-lg p-3 mt-5">
+                            <div className="chat-messages h-[80%] overflow-y-auto pr-1">
+                                {chatMessages.map((msg, index) => (
+                                    <div key={index} className="">
+                                        <span className={msg.sender === 'user' ? 'text-blue-700' : 'text-green-400'}>{msg.sender === 'user' ? 'You: ' : 'Bot: '}</span>
+                                        <span className="text-white">{msg.text}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <form onSubmit={handleSendMessage} className="relative -bottom-5 w-full flex">
+                                <input type="text" name="message" placeholder="Ask a question..." className="flex-1 p-2 mr-2 text-black rounded-lg" />
+                                <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                                    Send
+                                </button>
+                            </form>
+                        </div>
+                    )}
                 </div>
-              </div>
-
-              <div className="w-full mt-[2%] h-[44%] bg-gray-500/40 rounded-lg overflow-hidden">
-                <div ref={myMeeting} className="w-full h-full" />
-              </div>
+                {/* <div className=" w-full h-10 absolute bottom-0 flex justify-center items-center">Developed By Tarun Kataria With ♥</div> */}
+                {/* <button
+                    onClick={() => {
+                        setIsChatbotOpen(!isChatbotOpen);
+                    }}
+                    className="mb-4 absolute bottom-2 right-5 bg-blue-500 cursor-pointer text-white rounded-lg p-2">
+                    {isChatbotOpen ? 'Close ' : 'Open '}
+                </button> */}
             </div>
-          </div>
-        </div>
-
-        <div className="w-full h-10 absolute bottom-0 flex justify-center items-center text-gray-400 text-sm">
-          Developed By Tarun Kataria With ♥
-        </div>
-      </div>
-      <NotWorking />
-    </>
-  );
+            <NotWorking />
+        </>
+    );
 }
 
 export default CodeRoom;
